@@ -62,8 +62,8 @@ class D88(Image):
         return new_secs
 
     @staticmethod
-    def track_from_file(f, cyl: int, head: int,
-                        media_flag: int) -> Optional[ibm.IBMTrack_Fixed]:
+    def track_from_file(f, cyl: int, head: int, media_flag: int,
+                        reorder=None) -> Optional[ibm.IBMTrack_Fixed]:
         track = None
         track_mfm_flag = None
         pos = None
@@ -112,6 +112,10 @@ class D88(Image):
         if track is None:
             return None
 
+        # Optional hook to change the physical sector order.
+        if reorder is not None:
+            secs = reorder(secs)
+
         track.secs = len(secs)
         track.sz = [x[3] for x in secs]
         track.finalise()
@@ -141,7 +145,7 @@ class D88(Image):
         return t
 
     @staticmethod
-    def disk_from_file(f, disk_offset: int) -> TrackDict:
+    def disk_from_file(f, disk_offset: int, opts=None) -> TrackDict:
         f.seek(disk_offset)
         to_track: TrackDict = dict()
 
@@ -181,7 +185,7 @@ class D88(Image):
             disk_offset, disk_index = 0, 0
             while disk_offset < file_size:
                 if disk_index == d88.opts.index:
-                    d88.to_track = D88.disk_from_file(f, disk_offset)
+                    d88.to_track = cls.disk_from_file(f, disk_offset, d88.opts)
                 f.seek(disk_offset)
                 header = struct.unpack('<16sB9xBBL', f.read(32))
                 _, _, _, _, disk_size = header
